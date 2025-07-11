@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Enums\UserRole;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Enum;
@@ -11,6 +12,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\MaterialStatus;
 use App\Enums\PostStatus;
 use App\Imports\PostsImport;
+use App\Notifications\NewPostNotification;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
@@ -27,11 +29,8 @@ class PostController extends Controller
 
     public function store(Request $request)
     {
-        Log::info('Incoming store request', $request->all());
-
         if ($request['reviewee_id'] == null) {
             $request['reviewee_id'] = Auth::id();
-            Log::info('Defaulted reviewee_id to auth user', ['reviewee_id' => Auth::id()]);
         }
 
         $input = $request->all();
@@ -62,10 +61,18 @@ class PostController extends Controller
 
         try {
             $post = Post::create($validated);
-            Log::info('Post created', ['post_id' => $post->id]);
+
+            $users = User::all();
+            foreach ($users as $user) {
+                $user->notify(new NewPostNotification());
+            }
+
             return back()->with('success', 'Post added.');
         } catch (\Exception $e) {
-            Log::error('Failed to create post', ['error' => $e->getMessage()]);
+            // Log::info('VAPID_PUBLIC_KEY:', [env('VAPID_PUBLIC_KEY')]);
+            // Log::info('VAPID_PRIVATE_KEY:', [env('VAPID_PRIVATE_KEY')]);
+            // Log::info('VAPID_SUBJECT:', [env('VAPID_SUBJECT')]);
+            Log::error($e);
             throw ValidationException::withMessages([
                 'message' => ['Failed to create post'],
                 'error' => $e->getMessage()

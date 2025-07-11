@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\PostController;
@@ -26,6 +28,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/posts/{id}/details', [PostController::class, 'updateDetails'])->name('posts.update.details');
 
     Route::post('/posts/import', [PostController::class, 'importExcel']);
+
+    Route::post('/save-subscription', function (Request $request) {
+        Log::info('✅ /save-subscription hit!');
+        Log::info('Payload:', $request->all());
+
+        $request->user()->updatePushSubscription(
+            $request->input('endpoint'),
+            $request->input('keys.p256dh'),
+            $request->input('keys.auth')
+        );
+
+        return response()->json(['success' => true]);
+    });
 });
 
 require __DIR__ . '/settings.php';
